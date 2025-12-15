@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIoT 智慧監控儀表板 v4.4 (最終版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: auto; }
+        h1, h2 { color: #1777ff; }
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px;}
+        
+        /* ✨✨ 這裡就是我們微調的地方！ ✨✨ */
+        .main-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+            gap: 20px; 
+        }
+        /* ✨ 新增：為圖表建立一個有固定高度的容器，這是最關鍵的修正 ✨ */
+        .chart-container {
+            position: relative;
+            height: 350px; /* 您可以調整這個高度來控制圖表的大小 */
+            width: 100%;
+        }
+
+        .stats-grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px; }
+        .stat-card { background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid #1777ff; }
+        .stat-title { font-weight: bold; color: #555; margin-bottom: 10px; }
+        .stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
+        .stat-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        #daily-breakdown-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        #daily-breakdown-table th, #daily-breakdown-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        #daily-breakdown-table th { background-color: #e9ecef; }
+        #real-time-temp { font-size: 2.5em; font-weight: bold; color: #d9534f; text-align: center; }
+        #last-update-time { text-align: center; font-size: 0.8em; color: #888; margin-top: 10px; }
+        #chat-window { height: 250px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; background-color: #fdfdfd; }
+        .user-message { text-align: right; color: #0056b3; }
+        .ai-message { text-align: left; color: #28a745; white-space: pre-wrap; }
+        input, select, button { padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        button { background-color: #1777ff; color: white; border: none; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #0056b3; }
+        .quick-replies { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .quick-replies button { width: auto; background-color: #e9ecef; color: #333; border: 1px solid #ddd; }
+        .quick-replies button:hover { background-color: #dde1e6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AIoT 智慧監控儀表板 (最終穩定版)</h1>
+        
+        <div class="card">
+            <h2>設備管理</h2>
+            <label for="device-selector">選擇設備:</label>
+            <select id="device-selector"></select>
+            <hr>
+            <input type="text" id="new-device-name" placeholder="輸入新設備名稱">
+            <button onclick="addDevice()">新增設備</button>
+        </div>
+
+        <div class="card" id="stats-container" style="display: none;">
+            <h2>溫度統計報告</h2>
+            <div class="stats-grid-container">
+                <div class="stat-card"> <div class="stat-title">本日數據</div> <div class="stat-item"><span>最高溫:</span> <span id="today-max">--</span></div> <div class="stat-item"><span>最低溫:</span> <span id="today-min">--</span></div> <div class="stat-item"><span>均溫:</span> <span id="today-avg">--</span></div> </div>
+                <div class="stat-card"> <div class="stat-title">近一週數據</div> <div class="stat-item"><span>最高溫:</span> <span id="week-max">--</span></div> <div class="stat-item"><span>最低溫:</span> <span id="week-min">--</span></div> <div class="stat-item"><span>均溫:</span> <span id="week-avg">--</span></div> <div class="stat-item"><span>溫差:</span> <span id="week-diff">--</span></div> </div>
+                <div class="stat-card"> <div class="stat-title">近一月數據</div> <div class="stat-item"><span>月均溫:</span> <span id="month-avg" class="stat-value">--</span></div> </div>
+            </div>
+            <h3 style="margin-top: 20px;">七日內每日數據</h3>
+            <div style="overflow-x: auto;">
+                <table id="daily-breakdown-table">
+                    <thead><tr><th>日期</th><th>均溫</th><th>最高溫</th><th>最低溫</th><th>溫差</th></tr></thead>
+                    <tbody id="daily-breakdown-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="card" id="real-time-card">
+                <h2>即時溫度</h2>
+                <div id="real-time-temp">-- °C</div>
+                <div id="last-update-time"></div>
+            </div>
+
+            <div class="card">
+                <h2>每週溫度趨勢 (每小時平均)</h2>
+                 <div class="chart-container">
+                    <canvas id="tempChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>與 AIoT 分析師對話</h2>
+                <div id="chat-window"></div>
+                <input type="text" id="chat-input" placeholder="在這裡輸入您的問題...">
+                <button onclick="sendMessage()">發送</button>
+                <div class="quick-replies">
+                    <button onclick="sendSuggestedReply('總結一下這台設備目前的整體狀況')">總結目前狀況</button>
+                    <button onclick="sendSuggestedReply('這兩天的溫度趨勢如何？有沒有任何異常？')">分析溫度趨勢</button>
+                    <button onclick="sendSuggestedReply('這台設備的最高溫和最低溫分別出現在什麼時候？')">查詢極端溫度</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tempChart; 
+        let realTimeInterval, statsInterval; // 把 statsInterval 也宣告在外面
+
+        function sendSuggestedReply(text) {
+            document.getElementById('chat-input').value = text;
+            sendMessage();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { 
+            // 把事件監聽器也加回來
+            document.getElementById('device-selector').addEventListener('change', handleDeviceSelection);
+            document.getElementById('chat-input').addEventListener('keypress', e => e.key === 'Enter' && sendMessage());
+            loadDevices(); 
+        });
+
+        async function loadDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                if (!response.ok) throw new Error('無法載入設備列表');
+                const devices = await response.json();
+                const selector = document.getElementById('device-selector');
+                selector.innerHTML = '<option value="">-- 請選擇一個設備 --</option>';
+                devices.forEach(device => {
+                    if (!device.id) return;
+                    const option = document.createElement('option');
+                    option.value = device.id;
+                    option.textContent = device.name;
+                    selector.appendChild(option);
+                });
+                const defaultOption = Array.from(selector.options).find(opt => opt.textContent === 'MyTempSensor');
+                if (defaultOption) {
+                    defaultOption.selected = true;
+                    selector.dispatchEvent(new Event('change'));
+                }
+            } catch (error) { console.error(error); alert('無法載入設備列表，請檢查後端服務是否已啟動。'); }
+        }
+
+        async function addDevice() {
+            const deviceName = document.getElementById('new-device-name').value;
+            if (!deviceName) { alert('請輸入設備名稱'); return; }
+            const response = await fetch('/api/device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: deviceName }) });
+            if(response.ok) { alert('設備新增成功！'); document.getElementById('new-device-name').value = ''; loadDevices(); } else { alert('設備新增失敗！'); }
+        }
+        
+        function handleDeviceSelection(event) {
+            const deviceId = event.target.value;
+            if (realTimeInterval) clearInterval(realTimeInterval);
+            if (statsInterval) clearInterval(statsInterval); // 清除統計定時器
+            
+            if (deviceId) {
+                document.getElementById('stats-container').style.display = 'block';
+                loadChartData(deviceId);
+                startRealTimeUpdates(deviceId); 
+                
+                const updateStats = () => loadStatistics(deviceId);
+                updateStats(); 
+                statsInterval = setInterval(updateStats, 60000); 
+            } else {
+                document.getElementById('stats-container').style.display = 'none';
+                document.getElementById('real-time-temp').textContent = '-- °C';
+                document.getElementById('last-update-time').textContent = '';
+                if(tempChart) tempChart.destroy();
+            }
+        }
+
+        async function loadStatistics(deviceId) {
+            try {
+                const response = await fetch(`/api/device/${deviceId}/stats`);
+                if (!response.ok) { const err = await response.json(); throw new Error(err.error || '獲取統計數據失敗'); }
+                const stats = await response.json();
+                const na = 'N/A';
+                document.getElementById('today-max').textContent = stats.today ? `${stats.today.max} °C` : na;
+                document.getElementById('today-min').textContent = stats.today ? `${stats.today.min} °C` : na;
+                document.getElementById('today-avg').textContent = stats.today ? `${stats.today.avg} °C` : na;
+                document.getElementById('week-max').textContent = stats.week ? `${stats.week.max} °C` : na;
+                document.getElementById('week-min').textContent = stats.week ? `${stats.week.min} °C` : na;
+                document.getElementById('week-avg').textContent = stats.week ? `${stats.week.avg} °C` : na;
+                document.getElementById('week-diff').textContent = stats.week ? `${stats.week.diff} °C` : na;
+                document.getElementById('month-avg').textContent = stats.month_avg ? `${stats.month_avg} °C` : na;
+                const tbody = document.getElementById('daily-breakdown-body');
+                tbody.innerHTML = '';
+                if (stats.daily_breakdown && stats.daily_breakdown.length > 0) {
+                    stats.daily_breakdown.forEach(day => {
+                        const row = `<tr><td>${day.date}</td><td>${day.avg} °C</td><td>${day.max} °C</td><td>${day.min} °C</td><td>${day.diff} °C</td></tr>`;
+                        tbody.innerHTML += row;
+                    });
+                } else { tbody.innerHTML = '<tr><td colspan="5">無每日數據</td></tr>'; }
+            } catch (error) { console.error('載入統計數據時發生錯誤:', error); }
+        }
+
+        function startRealTimeUpdates(deviceId) {
+            const tempElement = document.getElementById('real-time-temp');
+            const timeElement = document.getElementById('last-update-time');
+            const fetchAndUpdate = async () => {
+                try {
+                    const response = await fetch(`/api/device/${deviceId}/latest`);
+                    if (!response.ok) throw new Error('獲取最新數據失敗');
+                    const data = await response.json();
+                    if (data && data.temperature && data.temperature.length > 0) {
+                        const latestValue = parseFloat(data.temperature[0].value); 
+                        if (!isNaN(latestValue)) { tempElement.textContent = `${latestValue.toFixed(2)} °C`; } else { tempElement.textContent = 'N/A'; }
+                        timeElement.textContent = `最後更新: ${new Date().toLocaleTimeString()}`;
+                    } else { tempElement.textContent = '無數據'; }
+                } catch (error) { console.error('即時更新時發生錯誤:', error); tempElement.textContent = '更新失敗'; }
+            };
+            fetchAndUpdate(); 
+            realTimeInterval = setInterval(fetchAndUpdate, 5000); 
+        }
+
+        async function loadChartData(deviceId) {
+            try {
+                const response = await fetch(`/api/device/${deviceId}/history?key=temperature`); // 拿原始數據讓圖表更詳細
+                const data = await response.json();
+                const chartData = data.temperature ? data.temperature.map(item => ({ x: item.ts, y: parseFloat(item.value) })).filter(item => !isNaN(item.y)) : [];
+                const ctx = document.getElementById('tempChart').getContext('2d');
+                if (tempChart) tempChart.destroy();
+                tempChart = new Chart(ctx, { 
+                    type: 'line', 
+                    data: { datasets: [{ label: '每週溫度趨勢', data: chartData, borderColor: 'rgb(75, 192, 192)', tension: 0.1 }] }, 
+                    options: { 
+                        responsive: true,
+                        maintainAspectRatio: false, // ✨✨ 這是解決圖表無限延伸的關鍵 ✨✨
+                        scales: { 
+                            x: { type: 'time', time: { unit: 'day' } }, 
+                            y: { beginAtZero: false } 
+                        } 
+                    } 
+                });
+            } catch(error) {
+                console.error('載入圖表時發生錯誤:', error);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const question = input.value;
+            const deviceId = document.getElementById('device-selector').value;
+            const chatWindow = document.getElementById('chat-window');
+            if (!question || !deviceId) { alert('請先選擇設備並輸入問題'); return; }
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.className = 'user-message';
+            userMessageDiv.innerHTML = `<p><strong>您:</strong> ${question}</p>`;
+            chatWindow.appendChild(userMessageDiv);
+            input.value = '';
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'ai-message';
+            thinkingDiv.innerHTML = `<p><strong>AI:</strong> 思考中...</p>`;
+            chatWindow.appendChild(thinkingDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+            try {
+                const response = await fetch(`/ask?deviceId=${deviceId}&q=${encodeURIComponent(question)}`);
+                const result = await response.json();
+                chatWindow.removeChild(thinkingDiv);
+                const answer = result.ai_analysis || `發生錯誤: ${result.error}`;
+                const aiMessageDiv = document.createElement('div');
+                aiMessageDiv.className = 'ai-message';
+                aiMessageDiv.innerHTML = `<p><strong>AI:</strong> ${answer}</p>`;
+                chatWindow.appendChild(aiMessageDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            } catch (error) {
+                console.error('發送訊息時發生錯誤:', error);
+                chatWindow.removeChild(thinkingDiv);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'ai-message';
+                errorDiv.innerHTML = `<p><strong>AI:</strong> 抱歉，與伺服器連線時發生錯誤。</p>`;
+                chatWindow.appendChild(errorDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+        }
+    </script>
+</body>
+</html>

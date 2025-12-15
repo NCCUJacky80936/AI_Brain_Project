@@ -1,0 +1,130 @@
+/* static/css/style.css (v5.5 - 最終佈局修正版) */
+
+:root {
+    --primary-color: #1777ff;
+    --light-gray: #f0f2f5;
+    --card-bg: #fff;
+    --text-color: #333;
+    --border-color: #e8e8e8;
+}
+* { 
+    box-sizing: border-box; 
+}
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+    background-color: var(--light-gray); 
+    color: var(--text-color); 
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+.container { 
+    width: 95%; 
+    max-width: 1600px; 
+    margin: 20px auto;
+    flex-grow: 1;
+}
+h1, h2 { 
+    color: var(--primary-color); 
+    border-bottom: 2px solid var(--light-gray); 
+    padding-bottom: 10px;
+}
+h1 { 
+    margin-bottom: 20px; 
+}
+h2 { 
+    margin-top: 0; 
+    font-size: 1.2em; 
+}
+.card { 
+    background: var(--card-bg); 
+    padding: 20px; 
+    border-radius: 12px; 
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08); 
+    display: flex; /* 讓所有卡片預設為 flex 容器 */
+    flex-direction: column;
+}
+
+/* 主要佈局網格 */
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto 1fr; 
+    gap: 20px;
+    height: calc(100vh - 120px); 
+}
+.header-card { 
+    grid-column: 1 / -1; 
+}
+
+/* --- ✨✨ 這裡就是升級的地方！ ✨✨ --- */
+.main-content { 
+    grid-column: 1 / 2; 
+    display: grid; /* 將左欄改為 Grid 佈局 */
+    grid-template-rows: auto 1fr; /* 第一行高度自動，第二行填滿 */
+    gap: 20px; 
+    min-height: 0; 
+}
+.sidebar { 
+    grid-column: 2 / 3; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 20px; 
+    min-height: 0; 
+}
+
+/* 特定卡片的伸展行為 */
+#stats-container { 
+    overflow-y: auto; /* 如果統計報告內容太多，讓它自己滾動 */
+}
+.chart-card {
+    min-height: 0; /* 讓圖表卡片在 grid 中可以正確縮放 */
+}
+.chart-container {
+    position: relative; /* 建立一個相對定位的容器給 canvas */
+    flex-grow: 1;
+}
+#chat-card { 
+    flex-grow: 1; 
+}
+#chat-window { 
+    flex-grow: 1; 
+    height: 100px; 
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #fdfdfd;
+    overflow-y: scroll;
+}
+
+@media (max-width: 1024px) {
+    .dashboard-layout { 
+        grid-template-columns: 1fr; 
+        grid-template-rows: auto; 
+        height: auto; 
+    }
+    .main-content, .sidebar { 
+        grid-column: 1 / -1; 
+    }
+}
+
+/* 其他元件樣式 */
+.stats-grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+.stat-card { background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 5px solid var(--primary-color); }
+#daily-breakdown-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+#daily-breakdown-table th, #daily-breakdown-table td { border: 1px solid var(--border-color); padding: 8px; text-align: center; }
+#daily-breakdown-table th { background-color: #e9ecef; }
+#real-time-temp { font-size: 2.5em; font-weight: bold; color: #d9534f; text-align: center; margin: auto 0; }
+.quick-replies { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+.quick-replies button { width: auto; background-color: #e9ecef; color: #333; border: 1px solid #ddd; }
+.stat-title { font-weight: bold; color: #555; margin-bottom: 10px; }
+.stat-value { font-size: 1.8em; font-weight: bold; color: #333; }
+.stat-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+#last-update-time { text-align: center; font-size: 0.8em; color: #888; margin-top: 10px; }
+.user-message { text-align: right; color: #0056b3; }
+.ai-message { text-align: left; color: #28a745; white-space: pre-wrap; }
+input, select, button { padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; width: 100%; }
+button { background-color: var(--primary-color); color: white; border: none; cursor: pointer; transition: background-color 0.3s; }
+button:hover { background-color: #0056b3; }
+.quick-replies button:hover { background-color: #dde1e6; }
